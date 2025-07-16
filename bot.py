@@ -108,3 +108,6 @@ def webhook():
             send(chat_id, prices_msg)
 
     return "ok"
+@app.route("/")
+def index():
+    return "البوت شغّال ✅"
