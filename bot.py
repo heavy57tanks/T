@@ -1,38 +1,27 @@
 import telebot
 from telebot import types
 
-# التوكن
+# ✅ توكن البوت
 TELEGRAM_TOKEN = "7933355250:AAH7moLKbjXd39w9A4obFpXECi1oamyruaE"
+
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# عند إرسال /start
-@bot.message_handler(commands=['start'])
+# ✅ رسالة البداية
+@bot.message_handler(commands=["start"])
 def send_welcome(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("📊 تحليل السوق", "🧪 فحص الأسهم")
-    markup.row("📈 عرض النتائج", "ℹ️ تعليمات")
-    bot.send_message(message.chat.id, "✅ مرحباً يا أبو عبد الرحمن! اختر من القائمة:", reply_markup=markup)
+    button = types.KeyboardButton("عرض القائمة 📋")
+    markup.add(button)
+    bot.reply_to(message, "✅ البوت بدأ يا أبو عبد الرحمن!", reply_markup=markup)
 
-# التعامل مع الأوامر النصية
-@bot.message_handler(func=lambda m: True)
-def handle_message(message):
-    text = message.text.strip()
+# ✅ عرض القائمة (سواء بالزر أو كتابة)
+@bot.message_handler(func=lambda message: "عرض" in message.text and "القائمة" in message.text)
+def show_list(message):
+    bot.reply_to(message, "📋 هذه القائمة:\n1. سهم تسلا\n2. سهم أبل\n3. سهم أرامكو")
 
-    if text == "📊 تحليل السوق":
-        bot.reply_to(message, "🔍 يتم الآن تحليل السوق...")
+# ✅ لأي أمر غير مفهوم
+@bot.message_handler(func=lambda message: True)
+def fallback(message):
+    bot.reply_to(message, "❌ لم أفهم الأمر. اختر من الأزرار الظاهرة.")
 
-    elif text == "🧪 فحص الأسهم":
-        bot.reply_to(message, "✅ جاري فحص الأسهم...")
-
-    elif text == "📈 عرض النتائج":
-        bot.reply_to(message, "📋 هذه هي نتائج الفحص الأخيرة...")
-
-    elif text == "ℹ️ تعليمات":
-        bot.reply_to(message, "📘 تعليمات الاستخدام:\n- اختر أمر من القائمة\n- انتظر الرد\n- تواصل معي في حال وجود استفسار")
-
-    else:
-        bot.reply_to(message, "❌ لم أفهم الأمر. اختر من الأزرار الظاهرة.")
-
-# تشغيل البوت
-print("✅ البوت يعمل الآن...")
-bot.infinity_polling()
+bot.polling()
