@@ -1,75 +1,112 @@
-import telebot
-from telebot import types
+from flask import Flask, request
+import requests
 
-TELEGRAM_TOKEN = "ضع التوكن هنا"
-ADMIN_ID = 920880801  # رقمك الشخصي
+app = Flask(__name__)
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
+# إعدادات التوكن والمعرف
+TOKEN = "7933355250:AAH7moLKbjXd39w9A4obFpXECi1oamyruaE"
+ADMIN_ID = "920880801"
+API_URL = f"https://api.telegram.org/bot{TOKEN}"
 
-users_data = {}
+# قاعدة بيانات مصغرة
+allowed_users = set()
 
-# ✅ الرد على /start
-@bot.message_handler(commands=['start'])
-def welcome_user(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("📦 الاشتراك الشهري", "🎯 اشتراك مرة واحدة", "ℹ️ معلومات الاشتراك")
-    bot.send_message(message.chat.id,
-        "🎯 أهلاً بك في بوت *التحليل الشامل*.\nيرجى اختيار نوع الاشتراك:",
-        reply_markup=markup,
-        parse_mode="Markdown"
-    )
+# دالة إرسال الرسائل
+def send(chat_id, text, buttons=None):
+    data = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    if buttons:
+        data["reply_markup"] = {"inline_keyboard": buttons}
+    requests.post(f"{API_URL}/sendMessage", json=data)
 
-# ✅ الاشتراك الشهري
-@bot.message_handler(func=lambda msg: msg.text == "📦 الاشتراك الشهري")
-def monthly_subscription(msg):
-    users_data[msg.from_user.id] = "شهري"
-    bot.send_message(msg.chat.id,
-        "📦 *الاشتراك الشهري: 100 ريال*\n"
-        "- دعم ومقاومات فنية\n"
-        "- تحليل مالي لأسهم مختارة\n"
-        "- تحليلين زمنيين لأسهم من اختيارك\n"
-        "- أول اشتراك يشمل تحليلين إضافيين مجانًا",
-        parse_mode="Markdown"
-    )
-    notify_admin(msg, "📦 اشترك شهريًا")
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    data = request.get_json()
 
-# ✅ اشتراك مرة واحدة
-@bot.message_handler(func=lambda msg: msg.text == "🎯 اشتراك مرة واحدة")
-def single_subscription(msg):
-    users_data[msg.from_user.id] = "مرة واحدة"
-    bot.send_message(msg.chat.id,
-        "🎯 *الاشتراك لمرة واحدة: 10 ريال للسهم*\n"
-        "- دعم ومقاومات Color\n"
-        "- تحليل زمني\n"
-        "- تحليل مالي للشركات بدون مركز مالي واضح",
-        parse_mode="Markdown"
-    )
-    notify_admin(msg, "🎯 اشترك مرة واحدة")
+    # إذا كانت رسالة جديدة
+    if "message" in data:
+        msg = data["message"]
+        chat_id = msg["chat"]["id"]
+        text = msg.get("text", "")
+        username = msg["from"].get("username", "بدون اسم")
 
-# ✅ معلومات الاشتراك
-@bot.message_handler(func=lambda msg: msg.text == "ℹ️ معلومات الاشتراك")
-def info_subscription(msg):
-    bot.send_message(msg.chat.id,
-        "💡 *أنواع الاشتراكات:*\n"
-        "1. 📦 شهري = 100 ريال\n"
-        "2. 🎯 لمرة واحدة = 10 ريال لكل سهم\n\n"
-        "🛑 لا يمكن كتابة رسائل في هذا البوت، فقط اختيار من القوائم.",
-        parse_mode="Markdown"
-    )
+        # أمر /start
+        if text == "/start":
+            welcome_msg = f"""👋 مرحبًا بك في <b>التحليل الشامل</b>!
 
-# ✅ التنبيه للمشرف
-def notify_admin(msg, choice_text):
-    user = msg.from_user
-    notice = f"👤 مستخدم جديد:\n"\
-             f"اسم: {user.first_name}\n"\
-             f"يوزر: @{user.username if user.username else '—'}\n"\
-             f"معرف: `{user.id}`\n"\
-             f"📝 اختار: {choice_text}"
-    bot.send_message(ADMIN_ID, notice, parse_mode="Markdown")
+🟢 اختر نوع الاشتراك:
+1️⃣ <b>الاشتراك الشهري</b>
+2️⃣ <b>الاشتراك مدى الحياة</b>
 
-# ✅ منع أي رسالة كتابة
-@bot.message_handler(func=lambda msg: True)
-def block_text(msg):
-    bot.send_message(msg.chat.id, "❌ لا يمكن إرسال رسائل. يرجى استخدام الأزرار فقط.")
+📩 حدد كيف تحب يكون الرد من الإدارة 👇"""
+            buttons = [
+                [{"text": "📩 تسجيل - رد خاص", "callback_data": "register_private"}],
+                [{"text": "📩 تسجيل - رد عام", "callback_data": "register_public"}],
+                [{"text": "💰 معرفة الأسعار", "callback_data": "prices"}]
+            ]
+            send(chat_id, welcome_msg, buttons)
 
-bot.polling()
+        # أوامر المدير فقط
+        elif str(chat_id) == ADMIN_ID:
+            if text.startswith("/add "):
+                try:
+                    user_id = int(text.split()[1])
+                    allowed_users.add(user_id)
+                    send(chat_id, f"✅ تم إضافة المستخدم: <code>{user_id}</code>")
+                    send(user_id, "✅ تم قبول تسجيلك في التحليل الشامل.")
+                except:
+                    send(chat_id, "❌ تأكد من كتابة الأمر هكذا:\n/add [id]")
+
+            elif text.startswith("/remove "):
+                try:
+                    user_id = int(text.split()[1])
+                    allowed_users.discard(user_id)
+                    send(chat_id, f"🚫 تم حذف المستخدم: <code>{user_id}</code>")
+                except:
+                    send(chat_id, "❌ تأكد من كتابة الأمر هكذا:\n/remove [id]")
+
+            elif text == "/users":
+                if allowed_users:
+                    users_list = "\n".join([str(uid) for uid in allowed_users])
+                    send(chat_id, f"📋 قائمة المشتركين:\n{users_list}")
+                else:
+                    send(chat_id, "🚫 لا يوجد مشتركين حتى الآن.")
+
+        # إذا كان غير مسموح له
+        elif chat_id not in allowed_users:
+            send(chat_id, "🚫 لا تملك صلاحية الاستخدام. الرجاء التسجيل أولًا.")
+
+    # إذا كانت ضغطة زر
+    elif "callback_query" in data:
+        query = data["callback_query"]
+        chat_id = query["from"]["id"]
+        username = query["from"].get("username", "بدون اسم")
+        action = query["data"]
+
+        if action in ["register_private", "register_public"]:
+            preference = "🔒 رد خاص" if action == "register_private" else "🔓 رد عام"
+            send(chat_id, f"✅ تم استلام طلبك. انتظر موافقة المدير.\nتفضيلك: {preference}")
+            send(ADMIN_ID, f"""📥 طلب تسجيل جديد:
+
+👤 المستخدم: @{username}
+🆔 ID: <code>{chat_id}</code>
+🎯 التفضيل: {preference}
+
+🛠️ استخدم الأمر:
+/add {chat_id}
+""")
+
+        elif action == "prices":
+            prices_msg = """💳 <b>أسعار الاشتراك:</b>
+
+- اشتراك شهري: 100 ريال
+- اشتراك مدى الحياة: 500 ريال
+
+📩 للتسجيل، ارجع واضغط على زر "📩 التسجيل" أعلاه.
+"""
+            send(chat_id, prices_msg)
+
+    return "ok"
