@@ -2,7 +2,9 @@ from flask import Flask, request
 import requests
 
 app = Flask(__name__)
-
+@app.route("/", methods=["GET"])
+def index():
+    return "البوت شغال ✅"
 # إعدادات التليجرام
 TOKEN = "7933355250:AAH7moLKbjXd39w9A4obFpXECi1oamyruaE"
 ADMIN_ID = "920880801"
