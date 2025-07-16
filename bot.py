@@ -1,66 +1,38 @@
 import telebot
-import os
-import json
+from telebot import types
 
-# ✅ إعدادات التوكن والتشات
+# التوكن
 TELEGRAM_TOKEN = "7933355250:AAH7moLKbjXd39w9A4obFpXECi1oamyruaE"
-TELEGRAM_CHAT_ID = "920880801"
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# ✅ تحميل أو إنشاء الملف
-FILE_PATH = "data.json"
-if not os.path.exists(FILE_PATH):
-    with open(FILE_PATH, "w") as f:
-        json.dump({"list": []}, f)
+# عند إرسال /start
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("📊 تحليل السوق", "🧪 فحص الأسهم")
+    markup.row("📈 عرض النتائج", "ℹ️ تعليمات")
+    bot.send_message(message.chat.id, "✅ مرحباً يا أبو عبد الرحمن! اختر من القائمة:", reply_markup=markup)
 
-def load_data():
-    with open(FILE_PATH, "r") as f:
-        return json.load(f)
+# التعامل مع الأوامر النصية
+@bot.message_handler(func=lambda m: True)
+def handle_message(message):
+    text = message.text.strip()
 
-def save_data(data):
-    with open(FILE_PATH, "w") as f:
-        json.dump(data, f)
+    if text == "📊 تحليل السوق":
+        bot.reply_to(message, "🔍 يتم الآن تحليل السوق...")
 
-# ✅ عرض القائمة
-@bot.message_handler(commands=['عرض_القائمة'])
-def show_list(message):
-    data = load_data()
-    items = data.get("list", [])
-    if not items:
-        bot.send_message(message.chat.id, "📭 القائمة فاضية يا أبو عبد الرحمن.")
+    elif text == "🧪 فحص الأسهم":
+        bot.reply_to(message, "✅ جاري فحص الأسهم...")
+
+    elif text == "📈 عرض النتائج":
+        bot.reply_to(message, "📋 هذه هي نتائج الفحص الأخيرة...")
+
+    elif text == "ℹ️ تعليمات":
+        bot.reply_to(message, "📘 تعليمات الاستخدام:\n- اختر أمر من القائمة\n- انتظر الرد\n- تواصل معي في حال وجود استفسار")
+
     else:
-        text = "📋 *القائمة الحالية:*\n"
-        for i, item in enumerate(items, start=1):
-            text += f"{i}. {item}\n"
-        bot.send_message(message.chat.id, text, parse_mode="Markdown")
+        bot.reply_to(message, "❌ لم أفهم الأمر. اختر من الأزرار الظاهرة.")
 
-# ✅ إضافة سهم
-@bot.message_handler(commands=['add'])
-def add_item(message):
-    item = message.text.replace("/add", "").strip()
-    if not item:
-        bot.send_message(message.chat.id, "❗ اكتب اسم السهم بعد الأمر.\nمثال: /add تسلا")
-        return
-    data = load_data()
-    if item in data["list"]:
-        bot.send_message(message.chat.id, f"⚠️ السهم {item} موجود بالفعل.")
-    else:
-        data["list"].append(item)
-        save_data(data)
-        bot.send_message(message.chat.id, f"✅ تم إضافة: {item}")
-
-# ✅ حذف سهم
-@bot.message_handler(commands=['remove'])
-def remove_item(message):
-    item = message.text.replace("/remove", "").strip()
-    data = load_data()
-    if item in data["list"]:
-        data["list"].remove(item)
-        save_data(data)
-        bot.send_message(message.chat.id, f"🗑️ تم حذف: {item}")
-    else:
-        bot.send_message(message.chat.id, f"❌ السهم {item} غير موجود.")
-
-# ✅ بدء البوت
-bot.send_message(TELEGRAM_CHAT_ID, "✅ البوت بدأ يا أبو عبد الرحمن!")
-bot.polling()
+# تشغيل البوت
+print("✅ البوت يعمل الآن...")
+bot.infinity_polling()
