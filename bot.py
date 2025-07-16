@@ -3,15 +3,15 @@ import requests
 
 app = Flask(__name__)
 
-# إعدادات التوكن والمعرف
+# إعدادات التليجرام
 TOKEN = "7933355250:AAH7moLKbjXd39w9A4obFpXECi1oamyruaE"
 ADMIN_ID = "920880801"
 API_URL = f"https://api.telegram.org/bot{TOKEN}"
 
-# قاعدة بيانات مصغرة
+# قائمة المستخدمين المسموح لهم
 allowed_users = set()
 
-# دالة إرسال الرسائل
+# دالة إرسال رسالة
 def send(chat_id, text, buttons=None):
     data = {
         "chat_id": chat_id,
@@ -22,18 +22,17 @@ def send(chat_id, text, buttons=None):
         data["reply_markup"] = {"inline_keyboard": buttons}
     requests.post(f"{API_URL}/sendMessage", json=data)
 
+# نقطة استقبال Webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     data = request.get_json()
 
-    # إذا كانت رسالة جديدة
     if "message" in data:
         msg = data["message"]
         chat_id = msg["chat"]["id"]
         text = msg.get("text", "")
         username = msg["from"].get("username", "بدون اسم")
 
-        # أمر /start
         if text == "/start":
             welcome_msg = f"""👋 مرحبًا بك في <b>التحليل الشامل</b>!
 
@@ -49,7 +48,6 @@ def webhook():
             ]
             send(chat_id, welcome_msg, buttons)
 
-        # أوامر المدير فقط
         elif str(chat_id) == ADMIN_ID:
             if text.startswith("/add "):
                 try:
@@ -75,11 +73,9 @@ def webhook():
                 else:
                     send(chat_id, "🚫 لا يوجد مشتركين حتى الآن.")
 
-        # إذا كان غير مسموح له
         elif chat_id not in allowed_users:
             send(chat_id, "🚫 لا تملك صلاحية الاستخدام. الرجاء التسجيل أولًا.")
 
-    # إذا كانت ضغطة زر
     elif "callback_query" in data:
         query = data["callback_query"]
         chat_id = query["from"]["id"]
